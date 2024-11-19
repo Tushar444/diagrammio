@@ -23,19 +23,18 @@ const DiagramElement: React.FC<DiagramElementProps> = ({
 
   const updateMember = (memberId: string, field: string, value: string, type: 'attribute' | 'method') => {
     console.log('Updating member:', { memberId, field, value, type });
-    const updatedElement = { ...element };
     
-    if (type === 'attribute' && 'attributes' in updatedElement) {
-      updatedElement.attributes = updatedElement.attributes.map(attr =>
+    if (type === 'attribute' && 'attributes' in element) {
+      const updatedAttributes = element.attributes.map(attr =>
         attr.id === memberId ? { ...attr, [field]: value } : attr
       );
+      onUpdate({ ...element, attributes: updatedAttributes });
     } else if (type === 'method') {
-      updatedElement.methods = updatedElement.methods.map(method =>
+      const updatedMethods = element.methods.map(method =>
         method.id === memberId ? { ...method, [field]: value } : method
       );
+      onUpdate({ ...element, methods: updatedMethods });
     }
-    
-    onUpdate(updatedElement);
   };
 
   const renderMember = (member: ClassMember, type: 'attribute' | 'method') => (
