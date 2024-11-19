@@ -25,12 +25,12 @@ const DiagramElement: React.FC<DiagramElementProps> = ({
     console.log('Updating member:', { memberId, field, value, type });
     const updatedElement = { ...element };
     
-    if (type === 'attribute' && 'attributes' in element) {
-      updatedElement.attributes = element.attributes.map(attr =>
+    if (type === 'attribute' && 'attributes' in updatedElement) {
+      updatedElement.attributes = updatedElement.attributes.map(attr =>
         attr.id === memberId ? { ...attr, [field]: value } : attr
       );
-    } else {
-      updatedElement.methods = element.methods.map(method =>
+    } else if (type === 'method') {
+      updatedElement.methods = updatedElement.methods.map(method =>
         method.id === memberId ? { ...method, [field]: value } : method
       );
     }
@@ -41,7 +41,7 @@ const DiagramElement: React.FC<DiagramElementProps> = ({
   const renderMember = (member: ClassMember, type: 'attribute' | 'method') => (
     <div key={member.id} className="flex items-center space-x-2 text-sm mb-1 min-w-[200px] max-w-full">
       <Select
-        defaultValue={member.accessModifier}
+        value={member.accessModifier}
         onValueChange={(value) => updateMember(member.id, 'accessModifier', value, type)}
       >
         <SelectTrigger className="w-20 h-8">
@@ -55,12 +55,14 @@ const DiagramElement: React.FC<DiagramElementProps> = ({
         </SelectContent>
       </Select>
       <Input
+        key={`${member.id}-${member.name}`}
         value={member.name}
         onChange={(e) => updateMember(member.id, 'name', e.target.value, type)}
         className="flex-1 h-8"
       />
       {type === 'attribute' && (
         <Input
+          key={`${member.id}-${member.type}`}
           value={member.type}
           onChange={(e) => updateMember(member.id, 'type', e.target.value, type)}
           className="w-24 h-8"
