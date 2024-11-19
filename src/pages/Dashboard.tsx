@@ -1,19 +1,55 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
-import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/components/ui/use-toast";
-import type { Diagram } from '@/types/diagram';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 const Dashboard = () => {
-  const [diagrams, setDiagrams] = useState<Diagram[]>([]);
   const [newDiagramName, setNewDiagramName] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
 
-  const createNewDiagram = () => {
+  const { data: diagrams = [], isLoading } = useQuery({
+    queryKey: ['diagrams'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('diagrams')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const createDiagram = useMutation({
+    mutationFn: async (name: string) => {
+      const { data, error } = await supabase
+        .from('diagrams')
+        .insert({
+          name,
+          user_id: session?.user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['diagrams'] });
+      navigate(`/editor/${data.id}`);
+    },
+  });
+
+  const handleCreateDiagram = () => {
     if (!newDiagramName.trim()) {
       toast({
         variant: "destructive",
@@ -23,20 +59,12 @@ const Dashboard = () => {
       return;
     }
 
-    const newDiagram: Diagram = {
-      id: Date.now().toString(),
-      name: newDiagramName,
-      userId: '1', // TODO: Get from auth
-      elements: [],
-      relationships: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setDiagrams([...diagrams, newDiagram]);
-    setNewDiagramName('');
-    navigate(`/editor/${newDiagram.id}`);
+    createDiagram.mutate(newDiagramName);
   };
+
+  if (isLoading) {
+    return <div>Loading diagrams...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -50,7 +78,7 @@ const Dashboard = () => {
               onChange={(e) => setNewDiagramName(e.target.value)}
               className="w-64"
             />
-            <Button onClick={createNewDiagram}>
+            <Button onClick={handleCreateDiagram} disabled={createDiagram.isPending}>
               <Plus className="mr-2 h-4 w-4" />
               Create New Diagram
             </Button>
@@ -67,10 +95,7 @@ const Dashboard = () => {
               <div className="space-y-2">
                 <h3 className="text-xl font-semibold">{diagram.name}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Last updated: {new Date(diagram.updatedAt).toLocaleDateString()}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {diagram.elements.length} elements
+                  Last updated: {new Date(diagram.updated_at).toLocaleDateString()}
                 </p>
               </div>
             </Card>

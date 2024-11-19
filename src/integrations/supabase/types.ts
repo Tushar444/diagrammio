@@ -9,7 +9,187 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      diagram_elements: {
+        Row: {
+          created_at: string
+          diagram_id: string
+          height: number
+          id: string
+          name: string
+          type: string
+          width: number
+          x_position: number
+          y_position: number
+        }
+        Insert: {
+          created_at?: string
+          diagram_id: string
+          height: number
+          id?: string
+          name: string
+          type: string
+          width: number
+          x_position: number
+          y_position: number
+        }
+        Update: {
+          created_at?: string
+          diagram_id?: string
+          height?: number
+          id?: string
+          name?: string
+          type?: string
+          width?: number
+          x_position?: number
+          y_position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagram_elements_diagram_id_fkey"
+            columns: ["diagram_id"]
+            isOneToOne: false
+            referencedRelation: "diagrams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diagrams: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagrams_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      element_members: {
+        Row: {
+          access_modifier: string
+          created_at: string
+          data_type: string | null
+          element_id: string
+          id: string
+          member_type: string
+          name: string
+        }
+        Insert: {
+          access_modifier: string
+          created_at?: string
+          data_type?: string | null
+          element_id: string
+          id?: string
+          member_type: string
+          name: string
+        }
+        Update: {
+          access_modifier?: string
+          created_at?: string
+          data_type?: string | null
+          element_id?: string
+          id?: string
+          member_type?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "element_members_element_id_fkey"
+            columns: ["element_id"]
+            isOneToOne: false
+            referencedRelation: "diagram_elements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      relationships: {
+        Row: {
+          created_at: string
+          diagram_id: string
+          id: string
+          source_id: string
+          target_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          diagram_id: string
+          id?: string
+          source_id: string
+          target_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          diagram_id?: string
+          id?: string
+          source_id?: string
+          target_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationships_diagram_id_fkey"
+            columns: ["diagram_id"]
+            isOneToOne: false
+            referencedRelation: "diagrams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationships_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "diagram_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationships_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "diagram_elements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

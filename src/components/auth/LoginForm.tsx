@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from '@/integrations/supabase/client';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -17,8 +18,13 @@ const LoginForm = () => {
     setLoading(true);
     
     try {
-      // TODO: Implement actual authentication
-      console.log('Login attempt:', { email });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
       navigate('/dashboard');
       toast({
         title: "Login successful",

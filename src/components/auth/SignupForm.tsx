@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from '@/integrations/supabase/client';
 
 const SignupForm = () => {
   const [email, setEmail] = useState('');
@@ -26,8 +27,13 @@ const SignupForm = () => {
 
     setLoading(true);
     try {
-      // TODO: Implement actual signup
-      console.log('Signup attempt:', { email });
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
       navigate('/dashboard');
       toast({
         title: "Account created",

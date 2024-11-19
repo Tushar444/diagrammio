@@ -1,24 +1,19 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import type { Diagram, ClassElement, InterfaceElement, Relationship } from '@/types/diagram';
+import type { ClassElement, InterfaceElement, Relationship } from '@/types/diagram';
 import { Plus, Save } from 'lucide-react';
 import DiagramElement from '@/components/diagram/DiagramElement';
 import RelationshipLine from '@/components/diagram/RelationshipLine';
+import { useDiagramData } from '@/hooks/useDiagramData';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
-  const [diagram, setDiagram] = useState<Diagram | null>({
-    id: id || '',
-    name: 'New Diagram',
-    userId: '1',
-    elements: [],
-    relationships: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
+  const { session } = useAuth();
+  const { diagram, isLoading, updateDiagram } = useDiagramData(id || '');
   const [selectedElement, setSelectedElement] = useState<ClassElement | InterfaceElement | null>(null);
   const [relationshipMode, setRelationshipMode] = useState<{
     active: boolean;
@@ -28,15 +23,17 @@ const Editor = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    console.log('Diagram updated:', diagram);
-  }, [diagram]);
+  if (isLoading) {
+    return <div>Loading diagram...</div>;
+  }
+
+  if (!diagram) {
+    return <div>Diagram not found</div>;
+  }
 
   const addClass = () => {
-    if (!diagram) return;
-
     const newClass: ClassElement = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       type: 'class',
       name: 'NewClass',
       x: Math.random() * 400,
@@ -47,7 +44,7 @@ const Editor = () => {
       methods: [],
     };
 
-    setDiagram({
+    updateDiagram.mutate({
       ...diagram,
       elements: [...diagram.elements, newClass],
     });
@@ -56,10 +53,8 @@ const Editor = () => {
   };
 
   const addInterface = () => {
-    if (!diagram) return;
-
     const newInterface: InterfaceElement = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       type: 'interface',
       name: 'NewInterface',
       x: Math.random() * 400,
@@ -69,7 +64,7 @@ const Editor = () => {
       methods: [],
     };
 
-    setDiagram({
+    updateDiagram.mutate({
       ...diagram,
       elements: [...diagram.elements, newInterface],
     });
@@ -81,7 +76,7 @@ const Editor = () => {
     if (!selectedElement) return;
 
     const newMember = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       name: type === 'attribute' ? 'newAttribute' : 'newMethod()',
       type: 'string',
       accessModifier: 'public' as const,
@@ -106,9 +101,7 @@ const Editor = () => {
   };
 
   const updateElement = (updatedElement: ClassElement | InterfaceElement) => {
-    if (!diagram) return;
-
-    setDiagram({
+    updateDiagram.mutate({
       ...diagram,
       elements: diagram.elements.map((el) =>
         el.id === updatedElement.id ? updatedElement : el
@@ -118,9 +111,7 @@ const Editor = () => {
   };
 
   const handleDragStop = (id: string, x: number, y: number) => {
-    if (!diagram) return;
-    
-    setDiagram({
+    updateDiagram.mutate({
       ...diagram,
       elements: diagram.elements.map((el) =>
         el.id === id ? { ...el, x, y } : el
@@ -142,16 +133,16 @@ const Editor = () => {
     if (relationshipMode.active && relationshipMode.sourceId && relationshipMode.type) {
       if (relationshipMode.sourceId !== element.id) {
         const newRelationship: Relationship = {
-          id: Date.now().toString(),
+          id: crypto.randomUUID(),
           type: relationshipMode.type,
           sourceId: relationshipMode.sourceId,
           targetId: element.id,
         };
 
-        setDiagram(prev => prev ? {
-          ...prev,
-          relationships: [...prev.relationships, newRelationship],
-        } : null);
+        updateDiagram.mutate({
+          ...diagram,
+          relationships: [...diagram.relationships, newRelationship],
+        });
 
         setRelationshipMode({ active: false, type: null, sourceId: null });
         toast({
@@ -166,7 +157,7 @@ const Editor = () => {
 
   const saveDiagram = async () => {
     try {
-      console.log('Saving diagram:', diagram);
+      await updateDiagram.mutateAsync(diagram);
       toast({
         title: "Diagram saved",
         description: "Your changes have been saved successfully.",
@@ -222,7 +213,7 @@ const Editor = () => {
 
       {/* Canvas */}
       <div className="flex-1 bg-white relative overflow-auto" ref={canvasRef}>
-        {diagram?.relationships.map(relationship => {
+        {diagram.relationships.map(relationship => {
           const sourceElement = diagram.elements.find(el => el.id === relationship.sourceId);
           const targetElement = diagram.elements.find(el => el.id === relationship.targetId);
           
@@ -238,7 +229,7 @@ const Editor = () => {
           }
           return null;
         })}
-        {diagram?.elements.map(element => (
+        {diagram.elements.map(element => (
           <DiagramElement
             key={element.id}
             element={element}
