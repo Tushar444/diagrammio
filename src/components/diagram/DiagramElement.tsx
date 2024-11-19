@@ -25,15 +25,21 @@ const DiagramElement: React.FC<DiagramElementProps> = ({
     console.log('Updating member:', { memberId, field, value, type });
     
     if (type === 'attribute' && 'attributes' in element) {
-      const updatedAttributes = element.attributes.map(attr =>
-        attr.id === memberId ? { ...attr, [field]: value } : attr
-      );
-      onUpdate({ ...element, attributes: updatedAttributes });
+      const updatedElement = {
+        ...element,
+        attributes: element.attributes.map(attr =>
+          attr.id === memberId ? { ...attr, [field]: value } : attr
+        )
+      };
+      onUpdate(updatedElement);
     } else if (type === 'method') {
-      const updatedMethods = element.methods.map(method =>
-        method.id === memberId ? { ...method, [field]: value } : method
-      );
-      onUpdate({ ...element, methods: updatedMethods });
+      const updatedElement = {
+        ...element,
+        methods: element.methods.map(method =>
+          method.id === memberId ? { ...method, [field]: value } : method
+        )
+      };
+      onUpdate(updatedElement);
     }
   };
 
