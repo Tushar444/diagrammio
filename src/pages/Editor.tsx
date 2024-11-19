@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import type { Diagram, ClassElement, InterfaceElement, Relationship, ClassMember } from '@/types/diagram';
+import type { Diagram, ClassElement, InterfaceElement, Relationship } from '@/types/diagram';
 import { Plus, Save } from 'lucide-react';
+import DiagramElement from '@/components/diagram/DiagramElement';
+import RelationshipLine from '@/components/diagram/RelationshipLine';
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +20,11 @@ const Editor = () => {
     updatedAt: new Date().toISOString(),
   });
   const [selectedElement, setSelectedElement] = useState<ClassElement | InterfaceElement | null>(null);
+  const [relationshipMode, setRelationshipMode] = useState<{
+    active: boolean;
+    type: Relationship['type'] | null;
+    sourceId: string | null;
+  }>({ active: false, type: null, sourceId: null });
   const canvasRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -74,11 +80,11 @@ const Editor = () => {
   const addMember = (type: 'attribute' | 'method') => {
     if (!selectedElement) return;
 
-    const newMember: ClassMember = {
+    const newMember = {
       id: Date.now().toString(),
       name: type === 'attribute' ? 'newAttribute' : 'newMethod()',
       type: 'string',
-      accessModifier: 'public',
+      accessModifier: 'public' as const,
     };
 
     if (selectedElement.type === 'class') {
@@ -89,14 +95,12 @@ const Editor = () => {
           newMember,
         ],
       };
-
       updateElement(updatedElement);
     } else if (type === 'method') {
       const updatedElement = {
         ...selectedElement,
         methods: [...selectedElement.methods, newMember],
       };
-
       updateElement(updatedElement);
     }
   };
@@ -111,6 +115,53 @@ const Editor = () => {
       ),
     });
     setSelectedElement(updatedElement);
+  };
+
+  const handleDragStop = (id: string, x: number, y: number) => {
+    if (!diagram) return;
+    
+    setDiagram({
+      ...diagram,
+      elements: diagram.elements.map((el) =>
+        el.id === id ? { ...el, x, y } : el
+      ),
+    });
+  };
+
+  const startRelationship = (type: Relationship['type']) => {
+    if (selectedElement) {
+      setRelationshipMode({ active: true, type, sourceId: selectedElement.id });
+      toast({
+        title: "Select target element",
+        description: "Click on another element to create the relationship",
+      });
+    }
+  };
+
+  const handleElementClick = (element: ClassElement | InterfaceElement) => {
+    if (relationshipMode.active && relationshipMode.sourceId && relationshipMode.type) {
+      if (relationshipMode.sourceId !== element.id) {
+        const newRelationship: Relationship = {
+          id: Date.now().toString(),
+          type: relationshipMode.type,
+          sourceId: relationshipMode.sourceId,
+          targetId: element.id,
+        };
+
+        setDiagram(prev => prev ? {
+          ...prev,
+          relationships: [...prev.relationships, newRelationship],
+        } : null);
+
+        setRelationshipMode({ active: false, type: null, sourceId: null });
+        toast({
+          title: "Relationship created",
+          description: "The relationship has been added to the diagram",
+        });
+      }
+    } else {
+      setSelectedElement(element);
+    }
   };
 
   const saveDiagram = async () => {
@@ -130,56 +181,6 @@ const Editor = () => {
     }
   };
 
-  const renderElement = (element: ClassElement | InterfaceElement) => {
-    const isSelected = selectedElement?.id === element.id;
-    const borderColor = isSelected ? 'border-primary' : 'border-gray-300';
-
-    return (
-      <div
-        key={element.id}
-        className={`absolute border-2 ${borderColor} bg-white rounded-lg shadow-md cursor-move p-4`}
-        style={{
-          left: element.x,
-          top: element.y,
-          width: element.width,
-          minHeight: element.height,
-        }}
-        onClick={() => setSelectedElement(element)}
-      >
-        <div className="text-center font-bold border-b pb-2">
-          {element.type === 'interface' && <span className="text-gray-500">«interface»</span>}
-          <div>{element.name}</div>
-        </div>
-        
-        {element.type === 'class' && (
-          <div className="border-b py-2">
-            <div className="font-semibold mb-1">Attributes</div>
-            {element.attributes.map(attr => (
-              <div key={attr.id} className="text-sm">
-                {attr.accessModifier === 'public' && '+'}
-                {attr.accessModifier === 'private' && '-'}
-                {attr.accessModifier === 'protected' && '#'}
-                {attr.name}: {attr.type}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="pt-2">
-          <div className="font-semibold mb-1">Methods</div>
-          {element.methods.map(method => (
-            <div key={method.id} className="text-sm">
-              {method.accessModifier === 'public' && '+'}
-              {method.accessModifier === 'private' && '-'}
-              {method.accessModifier === 'protected' && '#'}
-              {method.name}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="h-screen flex">
       {/* Toolbar */}
@@ -196,11 +197,57 @@ const Editor = () => {
           <Save className="mr-2 h-4 w-4" />
           Save Diagram
         </Button>
+
+        {selectedElement && (
+          <div className="space-y-2">
+            <h3 className="font-semibold">Add Relationship</h3>
+            <Select onValueChange={(value: Relationship['type']) => startRelationship(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="association">Association</SelectItem>
+                <SelectItem value="directed">Directed Association</SelectItem>
+                <SelectItem value="aggregation">Aggregation</SelectItem>
+                <SelectItem value="composition">Composition</SelectItem>
+                <SelectItem value="inheritance">Inheritance</SelectItem>
+                <SelectItem value="implementation">Implementation</SelectItem>
+                <SelectItem value="dependency">Dependency</SelectItem>
+                <SelectItem value="usage">Usage</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Canvas */}
       <div className="flex-1 bg-white relative overflow-auto" ref={canvasRef}>
-        {diagram?.elements.map(renderElement)}
+        {diagram?.relationships.map(relationship => {
+          const sourceElement = diagram.elements.find(el => el.id === relationship.sourceId);
+          const targetElement = diagram.elements.find(el => el.id === relationship.targetId);
+          
+          if (sourceElement && targetElement) {
+            return (
+              <RelationshipLine
+                key={relationship.id}
+                relationship={relationship}
+                sourcePosition={{ x: sourceElement.x + sourceElement.width / 2, y: sourceElement.y + sourceElement.height / 2 }}
+                targetPosition={{ x: targetElement.x + targetElement.width / 2, y: targetElement.y + targetElement.height / 2 }}
+              />
+            );
+          }
+          return null;
+        })}
+        {diagram?.elements.map(element => (
+          <DiagramElement
+            key={element.id}
+            element={element}
+            isSelected={selectedElement?.id === element.id}
+            onSelect={handleElementClick}
+            onUpdate={updateElement}
+            onDragStop={handleDragStop}
+          />
+        ))}
       </div>
 
       {/* Properties Panel */}
@@ -208,14 +255,6 @@ const Editor = () => {
         <div className="w-64 bg-muted p-4 space-y-4">
           <h3 className="font-semibold">{selectedElement.type === 'class' ? 'Class' : 'Interface'} Properties</h3>
           
-          <div className="space-y-2">
-            <label className="text-sm">Name</label>
-            <Input
-              value={selectedElement.name}
-              onChange={(e) => updateElement({ ...selectedElement, name: e.target.value })}
-            />
-          </div>
-
           {selectedElement.type === 'class' && (
             <>
               <h4 className="font-semibold">Attributes</h4>
