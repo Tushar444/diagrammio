@@ -22,8 +22,10 @@ const DiagramElement: React.FC<DiagramElementProps> = ({
   const borderColor = isSelected ? 'border-primary' : 'border-gray-300';
 
   const updateMember = (memberId: string, field: string, value: string, type: 'attribute' | 'method') => {
+    console.log('Updating member:', { memberId, field, value, type });
     const updatedElement = { ...element };
-    if (element.type === 'class' && type === 'attribute') {
+    
+    if (type === 'attribute' && 'attributes' in element) {
       updatedElement.attributes = element.attributes.map(attr =>
         attr.id === memberId ? { ...attr, [field]: value } : attr
       );
@@ -32,13 +34,14 @@ const DiagramElement: React.FC<DiagramElementProps> = ({
         method.id === memberId ? { ...method, [field]: value } : method
       );
     }
+    
     onUpdate(updatedElement);
   };
 
   const renderMember = (member: ClassMember, type: 'attribute' | 'method') => (
     <div key={member.id} className="flex items-center space-x-2 text-sm mb-1 min-w-[200px] max-w-full">
       <Select
-        value={member.accessModifier}
+        defaultValue={member.accessModifier}
         onValueChange={(value) => updateMember(member.id, 'accessModifier', value, type)}
       >
         <SelectTrigger className="w-20 h-8">

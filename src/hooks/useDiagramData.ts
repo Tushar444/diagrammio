@@ -98,16 +98,14 @@ export const useDiagramData = (diagramId: string) => {
       for (const element of updatedDiagram.elements) {
         const { error: elementError } = await supabase
           .from('diagram_elements')
-          .upsert({
-            id: element.id,
-            diagram_id: updatedDiagram.id,
-            type: element.type,
+          .update({
             name: element.name,
             x_position: element.x,
             y_position: element.y,
             width: element.width,
             height: element.height,
-          });
+          })
+          .eq('id', element.id);
 
         if (elementError) throw elementError;
 
