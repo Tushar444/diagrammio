@@ -36,12 +36,12 @@ const DiagramElement: React.FC<DiagramElementProps> = ({
   };
 
   const renderMember = (member: ClassMember, type: 'attribute' | 'method') => (
-    <div key={member.id} className="flex items-center space-x-2 text-sm mb-1">
+    <div key={member.id} className="flex items-center space-x-2 text-sm mb-1 min-w-[200px] max-w-full">
       <Select
         value={member.accessModifier}
         onValueChange={(value) => updateMember(member.id, 'accessModifier', value, type)}
       >
-        <SelectTrigger className="w-20">
+        <SelectTrigger className="w-20 h-8">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -54,13 +54,13 @@ const DiagramElement: React.FC<DiagramElementProps> = ({
       <Input
         value={member.name}
         onChange={(e) => updateMember(member.id, 'name', e.target.value, type)}
-        className="flex-1"
+        className="flex-1 h-8"
       />
       {type === 'attribute' && (
         <Input
           value={member.type}
           onChange={(e) => updateMember(member.id, 'type', e.target.value, type)}
-          className="w-24"
+          className="w-24 h-8"
           placeholder="Type"
         />
       )}
@@ -74,32 +74,38 @@ const DiagramElement: React.FC<DiagramElementProps> = ({
       bounds="parent"
     >
       <div
-        className={`absolute border-2 ${borderColor} bg-white rounded-lg shadow-md cursor-move p-4`}
+        className={`absolute border-2 ${borderColor} bg-white rounded-lg shadow-md cursor-move`}
         style={{
-          width: element.width,
-          minHeight: element.height,
+          minWidth: '250px',
+          maxWidth: '400px',
+          width: 'auto',
+          height: 'auto',
         }}
         onClick={() => onSelect(element)}
       >
-        <div className="text-center font-bold border-b pb-2">
-          {element.type === 'interface' && <span className="text-gray-500">«interface»</span>}
+        <div className="text-center font-bold border-b p-2">
+          {element.type === 'interface' && <div className="text-gray-500">«interface»</div>}
           <Input
             value={element.name}
             onChange={(e) => onUpdate({ ...element, name: e.target.value })}
-            className="text-center font-bold"
+            className="text-center font-bold h-8"
           />
         </div>
         
         {element.type === 'class' && (
-          <div className="border-b py-2">
+          <div className="border-b p-2">
             <div className="font-semibold mb-1">Attributes</div>
-            {element.attributes.map(attr => renderMember(attr, 'attribute'))}
+            <div className="space-y-1">
+              {element.attributes.map(attr => renderMember(attr, 'attribute'))}
+            </div>
           </div>
         )}
 
-        <div className="pt-2">
+        <div className="p-2">
           <div className="font-semibold mb-1">Methods</div>
-          {element.methods.map(method => renderMember(method, 'method'))}
+          <div className="space-y-1">
+            {element.methods.map(method => renderMember(method, 'method'))}
+          </div>
         </div>
       </div>
     </Draggable>
