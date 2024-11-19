@@ -38,34 +38,43 @@ export const useDiagramData = (diagramId: string) => {
       // Transform the data to match our frontend types
       const transformedElements = elements.map(element => ({
         id: element.id,
-        type: element.type,
+        type: element.type as 'class' | 'interface',
         name: element.name,
         x: element.x_position,
         y: element.y_position,
         width: element.width,
         height: element.height,
-        attributes: element.element_members
+        attributes: element.type === 'class' ? element.element_members
           .filter(member => member.member_type === 'attribute')
           .map(attr => ({
             id: attr.id,
             name: attr.name,
-            type: attr.data_type,
+            type: attr.data_type || '',
             accessModifier: attr.access_modifier,
-          })),
+          })) : [],
         methods: element.element_members
           .filter(member => member.member_type === 'method')
           .map(method => ({
             id: method.id,
             name: method.name,
-            type: method.data_type,
+            type: method.data_type || '',
             accessModifier: method.access_modifier,
           })),
-      }));
+      })) as (ClassElement | InterfaceElement)[];
 
       return {
-        ...diagramData,
+        id: diagramData.id,
+        name: diagramData.name,
+        userId: diagramData.user_id,
         elements: transformedElements,
-        relationships: relationships,
+        relationships: relationships.map(rel => ({
+          id: rel.id,
+          type: rel.type,
+          sourceId: rel.source_id,
+          targetId: rel.target_id,
+        })),
+        createdAt: diagramData.created_at,
+        updatedAt: diagramData.updated_at,
       } as Diagram;
     },
   });
@@ -102,15 +111,23 @@ export const useDiagramData = (diagramId: string) => {
 
         if (elementError) throw elementError;
 
-        // Update members
+        // First, delete existing members for this element
+        const { error: deleteError } = await supabase
+          .from('element_members')
+          .delete()
+          .eq('element_id', element.id);
+
+        if (deleteError) throw deleteError;
+
+        // Then insert the current members
         const members = [
-          ...element.attributes.map(attr => ({
+          ...(element.type === 'class' ? element.attributes.map(attr => ({
             element_id: element.id,
             member_type: 'attribute' as const,
             name: attr.name,
             data_type: attr.type,
             access_modifier: attr.accessModifier,
-          })),
+          })) : []),
           ...element.methods.map(method => ({
             element_id: element.id,
             member_type: 'method' as const,
@@ -120,19 +137,38 @@ export const useDiagramData = (diagramId: string) => {
           })),
         ];
 
-        const { error: membersError } = await supabase
-          .from('element_members')
-          .upsert(members);
+        if (members.length > 0) {
+          const { error: membersError } = await supabase
+            .from('element_members')
+            .insert(members);
 
-        if (membersError) throw membersError;
+          if (membersError) throw membersError;
+        }
       }
 
       // Update relationships
-      const { error: relationshipsError } = await supabase
+      const { error: deleteRelError } = await supabase
         .from('relationships')
-        .upsert(updatedDiagram.relationships);
+        .delete()
+        .eq('diagram_id', updatedDiagram.id);
 
-      if (relationshipsError) throw relationshipsError;
+      if (deleteRelError) throw deleteRelError;
+
+      if (updatedDiagram.relationships.length > 0) {
+        const relationships = updatedDiagram.relationships.map(rel => ({
+          id: rel.id,
+          diagram_id: updatedDiagram.id,
+          source_id: rel.sourceId,
+          target_id: rel.targetId,
+          type: rel.type,
+        }));
+
+        const { error: relationshipsError } = await supabase
+          .from('relationships')
+          .insert(relationships);
+
+        if (relationshipsError) throw relationshipsError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['diagram', diagramId] });
