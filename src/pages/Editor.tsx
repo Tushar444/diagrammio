@@ -9,15 +9,22 @@ import { Plus, Save } from 'lucide-react';
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
-  const [diagram, setDiagram] = useState<Diagram | null>(null);
+  const [diagram, setDiagram] = useState<Diagram | null>({
+    id: id || '',
+    name: 'New Diagram',
+    userId: '1',
+    elements: [],
+    relationships: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
   const [selectedElement, setSelectedElement] = useState<ClassElement | InterfaceElement | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    // TODO: Load diagram from backend
-    console.log('Loading diagram:', id);
-  }, [id]);
+    console.log('Diagram updated:', diagram);
+  }, [diagram]);
 
   const addClass = () => {
     if (!diagram) return;
@@ -26,8 +33,8 @@ const Editor = () => {
       id: Date.now().toString(),
       type: 'class',
       name: 'NewClass',
-      x: 100,
-      y: 100,
+      x: Math.random() * 400,
+      y: Math.random() * 400,
       width: 200,
       height: 300,
       attributes: [],
@@ -38,6 +45,8 @@ const Editor = () => {
       ...diagram,
       elements: [...diagram.elements, newClass],
     });
+
+    console.log('Added new class:', newClass);
   };
 
   const addInterface = () => {
@@ -47,8 +56,8 @@ const Editor = () => {
       id: Date.now().toString(),
       type: 'interface',
       name: 'NewInterface',
-      x: 100,
-      y: 100,
+      x: Math.random() * 400,
+      y: Math.random() * 400,
       width: 200,
       height: 200,
       methods: [],
@@ -58,6 +67,8 @@ const Editor = () => {
       ...diagram,
       elements: [...diagram.elements, newInterface],
     });
+
+    console.log('Added new interface:', newInterface);
   };
 
   const addMember = (type: 'attribute' | 'method') => {
@@ -104,7 +115,6 @@ const Editor = () => {
 
   const saveDiagram = async () => {
     try {
-      // TODO: Save to backend
       console.log('Saving diagram:', diagram);
       toast({
         title: "Diagram saved",
@@ -118,6 +128,56 @@ const Editor = () => {
         description: "Please try again later.",
       });
     }
+  };
+
+  const renderElement = (element: ClassElement | InterfaceElement) => {
+    const isSelected = selectedElement?.id === element.id;
+    const borderColor = isSelected ? 'border-primary' : 'border-gray-300';
+
+    return (
+      <div
+        key={element.id}
+        className={`absolute border-2 ${borderColor} bg-white rounded-lg shadow-md cursor-move p-4`}
+        style={{
+          left: element.x,
+          top: element.y,
+          width: element.width,
+          minHeight: element.height,
+        }}
+        onClick={() => setSelectedElement(element)}
+      >
+        <div className="text-center font-bold border-b pb-2">
+          {element.type === 'interface' && <span className="text-gray-500">«interface»</span>}
+          <div>{element.name}</div>
+        </div>
+        
+        {element.type === 'class' && (
+          <div className="border-b py-2">
+            <div className="font-semibold mb-1">Attributes</div>
+            {element.attributes.map(attr => (
+              <div key={attr.id} className="text-sm">
+                {attr.accessModifier === 'public' && '+'}
+                {attr.accessModifier === 'private' && '-'}
+                {attr.accessModifier === 'protected' && '#'}
+                {attr.name}: {attr.type}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="pt-2">
+          <div className="font-semibold mb-1">Methods</div>
+          {element.methods.map(method => (
+            <div key={method.id} className="text-sm">
+              {method.accessModifier === 'public' && '+'}
+              {method.accessModifier === 'private' && '-'}
+              {method.accessModifier === 'protected' && '#'}
+              {method.name}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -139,8 +199,8 @@ const Editor = () => {
       </div>
 
       {/* Canvas */}
-      <div className="flex-1 bg-white" ref={canvasRef}>
-        {/* Canvas content will be rendered here */}
+      <div className="flex-1 bg-white relative overflow-auto" ref={canvasRef}>
+        {diagram?.elements.map(renderElement)}
       </div>
 
       {/* Properties Panel */}
@@ -162,7 +222,6 @@ const Editor = () => {
               <Button onClick={() => addMember('attribute')} size="sm" className="w-full">
                 Add Attribute
               </Button>
-              {/* Attribute list */}
             </>
           )}
 
@@ -170,7 +229,6 @@ const Editor = () => {
           <Button onClick={() => addMember('method')} size="sm" className="w-full">
             Add Method
           </Button>
-          {/* Method list */}
         </div>
       )}
     </div>
