@@ -16,53 +16,16 @@ const RelationshipLine: React.FC<RelationshipLineProps> = ({
   sourceSize = { width: 200, height: 100 },
   targetSize = { width: 200, height: 100 },
 }) => {
-  const calculateIntersection = (
-    start: { x: number; y: number },
-    end: { x: number; y: number },
-    boxCenter: { x: number; y: number },
-    boxSize: { width: number; height: number }
-  ) => {
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const angle = Math.atan2(dy, dx);
-
-    // Calculate intersection with box edges
-    const w = boxSize.width / 2;
-    const h = boxSize.height / 2;
-
-    // Check intersection with vertical edges
-    let x = Math.abs(Math.cos(angle)) < 0.001 ? 0 : w / Math.abs(Math.cos(angle));
-    let y = x * Math.abs(Math.tan(angle));
-
-    // If intersection point is beyond box height, use horizontal edges
-    if (y > h) {
-      y = h;
-      x = y / Math.abs(Math.tan(angle));
-    }
-
-    // Apply signs based on direction
-    x *= Math.sign(dx);
-    y *= Math.sign(dy);
-
-    return {
-      x: boxCenter.x + x,
-      y: boxCenter.y + y,
-    };
+  // Instead of calculating intersections, we'll use the top left corners directly
+  const start = {
+    x: sourcePosition.x,
+    y: sourcePosition.y
   };
 
-  const start = calculateIntersection(
-    targetPosition,
-    sourcePosition,
-    sourcePosition,
-    sourceSize
-  );
-
-  const end = calculateIntersection(
-    sourcePosition,
-    targetPosition,
-    targetPosition,
-    targetSize
-  );
+  const end = {
+    x: targetPosition.x,
+    y: targetPosition.y
+  };
 
   const getMarkerEnd = () => {
     switch (relationship.type) {
@@ -104,8 +67,8 @@ const RelationshipLine: React.FC<RelationshipLineProps> = ({
           viewBox="0 0 16 16"
           refX="14"
           refY="8"
-          markerWidth="12"
-          markerHeight="12"
+          markerWidth="16"
+          markerHeight="16"
           orient="auto"
         >
           <path d="M 0 0 L 16 8 L 0 16 z" fill="black" />
@@ -117,8 +80,8 @@ const RelationshipLine: React.FC<RelationshipLineProps> = ({
           viewBox="0 0 16 16"
           refX="14"
           refY="8"
-          markerWidth="12"
-          markerHeight="12"
+          markerWidth="16"
+          markerHeight="16"
           orient="auto"
         >
           <path d="M 0 0 L 16 8 L 0 16 z" fill="white" stroke="black" strokeWidth="1" />
@@ -130,8 +93,8 @@ const RelationshipLine: React.FC<RelationshipLineProps> = ({
           viewBox="0 0 16 16"
           refX="14"
           refY="8"
-          markerWidth="12"
-          markerHeight="12"
+          markerWidth="16"
+          markerHeight="16"
           orient="auto"
         >
           <path d="M 0 8 L 8 0 L 16 8 L 8 16 z" fill="white" stroke="black" strokeWidth="1" />
@@ -143,8 +106,8 @@ const RelationshipLine: React.FC<RelationshipLineProps> = ({
           viewBox="0 0 16 16"
           refX="14"
           refY="8"
-          markerWidth="12"
-          markerHeight="12"
+          markerWidth="16"
+          markerHeight="16"
           orient="auto"
         >
           <path d="M 0 8 L 8 0 L 16 8 L 8 16 z" fill="black" />
