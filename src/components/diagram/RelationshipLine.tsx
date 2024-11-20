@@ -17,13 +17,18 @@ const RelationshipLine: React.FC<RelationshipLineProps> = ({
       case 'directed':
         return 'url(#arrow)';
       case 'inheritance':
-        return 'url(#triangle)';
+      case 'generalization':
+        return 'url(#triangle-empty)';
       case 'implementation':
+      case 'realization':
         return 'url(#triangle-empty)';
       case 'aggregation':
-        return 'url(#diamond)';
+        return 'url(#diamond-empty)';
       case 'composition':
         return 'url(#diamond-filled)';
+      case 'dependency':
+      case 'usage':
+        return 'url(#arrow)';
       default:
         return 'none';
     }
@@ -41,63 +46,59 @@ const RelationshipLine: React.FC<RelationshipLineProps> = ({
       }}
     >
       <defs>
+        {/* Arrow marker for directed associations and dependencies */}
         <marker
           id="arrow"
-          viewBox="0 0 10 10"
-          refX="9"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
+          viewBox="0 0 12 12"
+          refX="11"
+          refY="6"
+          markerWidth="8"
+          markerHeight="8"
           orient="auto"
         >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="black" />
+          <path d="M 0 0 L 12 6 L 0 12 z" fill="black" />
         </marker>
-        <marker
-          id="triangle"
-          viewBox="0 0 10 10"
-          refX="9"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto"
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="white" stroke="black" />
-        </marker>
+
+        {/* Empty triangle marker for inheritance/generalization */}
         <marker
           id="triangle-empty"
-          viewBox="0 0 10 10"
-          refX="9"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
+          viewBox="0 0 12 12"
+          refX="11"
+          refY="6"
+          markerWidth="8"
+          markerHeight="8"
           orient="auto"
-          strokeDasharray="4,4"
         >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="white" stroke="black" />
+          <path d="M 0 0 L 12 6 L 0 12 z" fill="white" stroke="black" strokeWidth="1" />
         </marker>
+
+        {/* Empty diamond marker for aggregation */}
         <marker
-          id="diamond"
-          viewBox="0 0 10 10"
-          refX="9"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
+          id="diamond-empty"
+          viewBox="0 0 12 12"
+          refX="11"
+          refY="6"
+          markerWidth="8"
+          markerHeight="8"
           orient="auto"
         >
-          <path d="M 0 5 L 5 0 L 10 5 L 5 10 z" fill="white" stroke="black" />
+          <path d="M 0 6 L 6 0 L 12 6 L 6 12 z" fill="white" stroke="black" strokeWidth="1" />
         </marker>
+
+        {/* Filled diamond marker for composition */}
         <marker
           id="diamond-filled"
-          viewBox="0 0 10 10"
-          refX="9"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
+          viewBox="0 0 12 12"
+          refX="11"
+          refY="6"
+          markerWidth="8"
+          markerHeight="8"
           orient="auto"
         >
-          <path d="M 0 5 L 5 0 L 10 5 L 5 10 z" fill="black" />
+          <path d="M 0 6 L 6 0 L 12 6 L 6 12 z" fill="black" />
         </marker>
       </defs>
+
       <line
         x1={sourcePosition.x}
         y1={sourcePosition.y}
@@ -106,7 +107,14 @@ const RelationshipLine: React.FC<RelationshipLineProps> = ({
         stroke="black"
         strokeWidth="1"
         markerEnd={getMarkerEnd()}
-        strokeDasharray={relationship.type === 'dependency' || relationship.type === 'usage' ? '4,4' : 'none'}
+        strokeDasharray={
+          relationship.type === 'dependency' || 
+          relationship.type === 'usage' || 
+          relationship.type === 'implementation' || 
+          relationship.type === 'realization' 
+            ? '4,4' 
+            : 'none'
+        }
       />
     </svg>
   );
