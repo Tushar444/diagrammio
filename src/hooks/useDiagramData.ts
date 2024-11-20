@@ -35,7 +35,6 @@ export const useDiagramData = (diagramId: string) => {
       
       if (relationshipsError) throw relationshipsError;
 
-      // Transform the data to match our frontend types
       const transformedElements = elements.map(element => ({
         id: element.id,
         type: element.type as 'class' | 'interface',
@@ -94,57 +93,112 @@ export const useDiagramData = (diagramId: string) => {
 
       if (diagramError) throw diagramError;
 
-      // Update elements
+      // Get existing elements to determine which ones are new
+      const { data: existingElements } = await supabase
+        .from('diagram_elements')
+        .select('id')
+        .eq('diagram_id', updatedDiagram.id);
+
+      const existingIds = new Set(existingElements?.map(el => el.id) || []);
+
+      // Handle elements (both new and existing)
       for (const element of updatedDiagram.elements) {
-        const { error: elementError } = await supabase
-          .from('diagram_elements')
-          .update({
-            name: element.name,
-            x_position: element.x,
-            y_position: element.y,
-            width: element.width,
-            height: element.height,
-          })
-          .eq('id', element.id);
+        if (!existingIds.has(element.id)) {
+          // Insert new element
+          console.log('Creating new element:', element);
+          const { data: newElement, error: elementError } = await supabase
+            .from('diagram_elements')
+            .insert({
+              id: element.id,
+              diagram_id: updatedDiagram.id,
+              type: element.type,
+              name: element.name,
+              x_position: element.x,
+              y_position: element.y,
+              width: element.width,
+              height: element.height,
+            })
+            .select()
+            .single();
 
-        if (elementError) throw elementError;
+          if (elementError) throw elementError;
 
-        // First, delete existing members for this element
-        const { error: deleteError } = await supabase
-          .from('element_members')
-          .delete()
-          .eq('element_id', element.id);
+          // Insert members for new element
+          const members = [
+            ...(element.type === 'class' ? element.attributes.map(attr => ({
+              element_id: element.id,
+              member_type: 'attribute' as const,
+              name: attr.name,
+              data_type: attr.type,
+              access_modifier: attr.accessModifier,
+            })) : []),
+            ...element.methods.map(method => ({
+              element_id: element.id,
+              member_type: 'method' as const,
+              name: method.name,
+              data_type: method.type,
+              access_modifier: method.accessModifier,
+            })),
+          ];
 
-        if (deleteError) throw deleteError;
+          if (members.length > 0) {
+            const { error: membersError } = await supabase
+              .from('element_members')
+              .insert(members);
 
-        // Then insert the current members
-        const members = [
-          ...(element.type === 'class' ? element.attributes.map(attr => ({
-            element_id: element.id,
-            member_type: 'attribute' as const,
-            name: attr.name,
-            data_type: attr.type,
-            access_modifier: attr.accessModifier,
-          })) : []),
-          ...element.methods.map(method => ({
-            element_id: element.id,
-            member_type: 'method' as const,
-            name: method.name,
-            data_type: method.type,
-            access_modifier: method.accessModifier,
-          })),
-        ];
+            if (membersError) throw membersError;
+          }
+        } else {
+          // Update existing element
+          const { error: elementError } = await supabase
+            .from('diagram_elements')
+            .update({
+              name: element.name,
+              x_position: element.x,
+              y_position: element.y,
+              width: element.width,
+              height: element.height,
+            })
+            .eq('id', element.id);
 
-        if (members.length > 0) {
-          const { error: membersError } = await supabase
+          if (elementError) throw elementError;
+
+          // Update members for existing element
+          const { error: deleteError } = await supabase
             .from('element_members')
-            .insert(members);
+            .delete()
+            .eq('element_id', element.id);
 
-          if (membersError) throw membersError;
+          if (deleteError) throw deleteError;
+
+          const members = [
+            ...(element.type === 'class' ? element.attributes.map(attr => ({
+              element_id: element.id,
+              member_type: 'attribute' as const,
+              name: attr.name,
+              data_type: attr.type,
+              access_modifier: attr.accessModifier,
+            })) : []),
+            ...element.methods.map(method => ({
+              element_id: element.id,
+              member_type: 'method' as const,
+              name: method.name,
+              data_type: method.type,
+              access_modifier: method.accessModifier,
+            })),
+          ];
+
+          if (members.length > 0) {
+            const { error: membersError } = await supabase
+              .from('element_members')
+              .insert(members);
+
+            if (membersError) throw membersError;
+          }
         }
       }
 
-      // Update relationships
+      // Handle relationships
       const { error: deleteRelError } = await supabase
         .from('relationships')
         .delete()
