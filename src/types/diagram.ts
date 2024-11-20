@@ -28,7 +28,7 @@ export interface ClassMember {
 
 export interface Relationship {
   id: string;
-  type: 'association' | 'directed' | 'aggregation' | 'composition' | 'inheritance' | 'implementation' | 'dependency' | 'usage';
+  type: 'association' | 'directed' | 'aggregation' | 'composition' | 'inheritance' | 'generalization' | 'implementation' | 'realization' | 'dependency' | 'usage';
   sourceId: string;
   targetId: string;
   sourceAnchor?: { x: number; y: number };

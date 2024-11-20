@@ -222,8 +222,22 @@ const Editor = () => {
               <RelationshipLine
                 key={relationship.id}
                 relationship={relationship}
-                sourcePosition={{ x: sourceElement.x + sourceElement.width / 2, y: sourceElement.y + sourceElement.height / 2 }}
-                targetPosition={{ x: targetElement.x + targetElement.width / 2, y: targetElement.y + targetElement.height / 2 }}
+                sourcePosition={{ 
+                  x: sourceElement.x + sourceElement.width / 2, 
+                  y: sourceElement.y + sourceElement.height / 2 
+                }}
+                targetPosition={{ 
+                  x: targetElement.x + targetElement.width / 2, 
+                  y: targetElement.y + targetElement.height / 2 
+                }}
+                sourceSize={{ 
+                  width: sourceElement.width, 
+                  height: sourceElement.height 
+                }}
+                targetSize={{ 
+                  width: targetElement.width, 
+                  height: targetElement.height 
+                }}
               />
             );
           }
