@@ -32,7 +32,17 @@ const SignupForm = () => {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes('User already registered')) {
+          toast({
+            variant: "destructive",
+            title: "Account already exists",
+            description: "An account with this email already exists. Please log in instead.",
+          });
+          return;
+        }
+        throw error;
+      }
 
       navigate('/dashboard');
       toast({
