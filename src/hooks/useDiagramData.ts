@@ -1,9 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { Diagram, ClassElement, InterfaceElement, Relationship } from '@/types/diagram';
+import type { Diagram, ClassElement, InterfaceElement } from '@/types/diagram';
+import { useDiagramOperations } from './useDiagramOperations';
 
 export const useDiagramData = (diagramId: string) => {
-  const queryClient = useQueryClient();
+  const updateDiagram = useDiagramOperations(diagramId);
 
   const { data: diagram, isLoading } = useQuery({
     queryKey: ['diagram', diagramId],
@@ -75,155 +76,6 @@ export const useDiagramData = (diagramId: string) => {
         createdAt: diagramData.created_at,
         updatedAt: diagramData.updated_at,
       } as Diagram;
-    },
-  });
-
-  const updateDiagram = useMutation({
-    mutationFn: async (updatedDiagram: Diagram) => {
-      console.log('Updating diagram:', updatedDiagram);
-
-      // Update diagram metadata
-      const { error: diagramError } = await supabase
-        .from('diagrams')
-        .update({
-          name: updatedDiagram.name,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', updatedDiagram.id);
-
-      if (diagramError) throw diagramError;
-
-      // Get existing elements to determine which ones are new
-      const { data: existingElements } = await supabase
-        .from('diagram_elements')
-        .select('id')
-        .eq('diagram_id', updatedDiagram.id);
-
-      const existingIds = new Set(existingElements?.map(el => el.id) || []);
-
-      // Handle elements (both new and existing)
-      for (const element of updatedDiagram.elements) {
-        if (!existingIds.has(element.id)) {
-          // Insert new element
-          console.log('Creating new element:', element);
-          const { data: newElement, error: elementError } = await supabase
-            .from('diagram_elements')
-            .insert({
-              id: element.id,
-              diagram_id: updatedDiagram.id,
-              type: element.type,
-              name: element.name,
-              x_position: element.x,
-              y_position: element.y,
-              width: element.width,
-              height: element.height,
-            })
-            .select()
-            .single();
-
-          if (elementError) throw elementError;
-
-          // Insert members for new element
-          const members = [
-            ...(element.type === 'class' ? element.attributes.map(attr => ({
-              element_id: element.id,
-              member_type: 'attribute' as const,
-              name: attr.name,
-              data_type: attr.type,
-              access_modifier: attr.accessModifier,
-            })) : []),
-            ...element.methods.map(method => ({
-              element_id: element.id,
-              member_type: 'method' as const,
-              name: method.name,
-              data_type: method.type,
-              access_modifier: method.accessModifier,
-            })),
-          ];
-
-          if (members.length > 0) {
-            const { error: membersError } = await supabase
-              .from('element_members')
-              .insert(members);
-
-            if (membersError) throw membersError;
-          }
-        } else {
-          // Update existing element
-          const { error: elementError } = await supabase
-            .from('diagram_elements')
-            .update({
-              name: element.name,
-              x_position: element.x,
-              y_position: element.y,
-              width: element.width,
-              height: element.height,
-            })
-            .eq('id', element.id);
-
-          if (elementError) throw elementError;
-
-          // Update members for existing element
-          const { error: deleteError } = await supabase
-            .from('element_members')
-            .delete()
-            .eq('element_id', element.id);
-
-          if (deleteError) throw deleteError;
-
-          const members = [
-            ...(element.type === 'class' ? element.attributes.map(attr => ({
-              element_id: element.id,
-              member_type: 'attribute' as const,
-              name: attr.name,
-              data_type: attr.type,
-              access_modifier: attr.accessModifier,
-            })) : []),
-            ...element.methods.map(method => ({
-              element_id: element.id,
-              member_type: 'method' as const,
-              name: method.name,
-              data_type: method.type,
-              access_modifier: method.accessModifier,
-            })),
-          ];
-
-          if (members.length > 0) {
-            const { error: membersError } = await supabase
-              .from('element_members')
-              .insert(members);
-
-            if (membersError) throw membersError;
-          }
-        }
-      }
-
-      // Handle relationships
-      const { error: deleteRelError } = await supabase
-        .from('relationships')
-        .delete()
-        .eq('diagram_id', updatedDiagram.id);
-
-      if (deleteRelError) throw deleteRelError;
-
-      if (updatedDiagram.relationships.length > 0) {
-        const relationships = updatedDiagram.relationships.map(rel => ({
-          id: rel.id,
-          diagram_id: updatedDiagram.id,
-          source_id: rel.sourceId,
-          target_id: rel.targetId,
-          type: rel.type,
-        }));
-
-        const { error: relationshipsError } = await supabase
-          .from('relationships')
-          .insert(relationships);
-
-        if (relationshipsError) throw relationshipsError;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['diagram', diagramId] });
     },
   });
 

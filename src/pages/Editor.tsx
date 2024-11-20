@@ -1,14 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import type { ClassElement, InterfaceElement, Relationship } from '@/types/diagram';
-import { Plus, Save } from 'lucide-react';
 import DiagramElement from '@/components/diagram/DiagramElement';
 import RelationshipLine from '@/components/diagram/RelationshipLine';
+import DiagramToolbar from '@/components/diagram/DiagramToolbar';
+import PropertiesPanel from '@/components/diagram/PropertiesPanel';
 import { useDiagramData } from '@/hooks/useDiagramData';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { debounce } from 'lodash';
 
 const Editor = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +23,13 @@ const Editor = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  const debouncedUpdate = useCallback(
+    debounce((updatedDiagram) => {
+      updateDiagram.mutate(updatedDiagram);
+    }, 500),
+    [updateDiagram]
+  );
+
   if (isLoading) {
     return <div>Loading diagram...</div>;
   }
@@ -31,7 +38,7 @@ const Editor = () => {
     return <div>Diagram not found</div>;
   }
 
-  const addClass = () => {
+  const addClass = useCallback(() => {
     const newClass: ClassElement = {
       id: crypto.randomUUID(),
       type: 'class',
@@ -44,15 +51,14 @@ const Editor = () => {
       methods: [],
     };
 
+    console.log('Added new class:', newClass);
     updateDiagram.mutate({
       ...diagram,
       elements: [...diagram.elements, newClass],
     });
+  }, [diagram, updateDiagram]);
 
-    console.log('Added new class:', newClass);
-  };
-
-  const addInterface = () => {
+  const addInterface = useCallback(() => {
     const newInterface: InterfaceElement = {
       id: crypto.randomUUID(),
       type: 'interface',
@@ -64,15 +70,14 @@ const Editor = () => {
       methods: [],
     };
 
+    console.log('Added new interface:', newInterface);
     updateDiagram.mutate({
       ...diagram,
       elements: [...diagram.elements, newInterface],
     });
+  }, [diagram, updateDiagram]);
 
-    console.log('Added new interface:', newInterface);
-  };
-
-  const addMember = (type: 'attribute' | 'method') => {
+  const addMember = useCallback((type: 'attribute' | 'method') => {
     if (!selectedElement) return;
 
     const newMember = {
@@ -98,28 +103,30 @@ const Editor = () => {
       };
       updateElement(updatedElement);
     }
-  };
+  }, [selectedElement]);
 
-  const updateElement = (updatedElement: ClassElement | InterfaceElement) => {
-    updateDiagram.mutate({
+  const updateElement = useCallback((updatedElement: ClassElement | InterfaceElement) => {
+    const updatedDiagram = {
       ...diagram,
       elements: diagram.elements.map((el) =>
         el.id === updatedElement.id ? updatedElement : el
       ),
-    });
+    };
+    debouncedUpdate(updatedDiagram);
     setSelectedElement(updatedElement);
-  };
+  }, [diagram, debouncedUpdate]);
 
-  const handleDragStop = (id: string, x: number, y: number) => {
-    updateDiagram.mutate({
+  const handleDragStop = useCallback((id: string, x: number, y: number) => {
+    const updatedDiagram = {
       ...diagram,
       elements: diagram.elements.map((el) =>
         el.id === id ? { ...el, x, y } : el
       ),
-    });
-  };
+    };
+    debouncedUpdate(updatedDiagram);
+  }, [diagram, debouncedUpdate]);
 
-  const startRelationship = (type: Relationship['type']) => {
+  const startRelationship = useCallback((type: Relationship['type']) => {
     if (selectedElement) {
       setRelationshipMode({ active: true, type, sourceId: selectedElement.id });
       toast({
@@ -127,9 +134,9 @@ const Editor = () => {
         description: "Click on another element to create the relationship",
       });
     }
-  };
+  }, [selectedElement, toast]);
 
-  const handleElementClick = (element: ClassElement | InterfaceElement) => {
+  const handleElementClick = useCallback((element: ClassElement | InterfaceElement) => {
     if (relationshipMode.active && relationshipMode.sourceId && relationshipMode.type) {
       if (relationshipMode.sourceId !== element.id) {
         const newRelationship: Relationship = {
@@ -153,9 +160,9 @@ const Editor = () => {
     } else {
       setSelectedElement(element);
     }
-  };
+  }, [relationshipMode, diagram, updateDiagram, toast]);
 
-  const saveDiagram = async () => {
+  const saveDiagram = useCallback(async () => {
     try {
       await updateDiagram.mutateAsync(diagram);
       toast({
@@ -170,48 +177,18 @@ const Editor = () => {
         description: "Please try again later.",
       });
     }
-  };
+  }, [diagram, updateDiagram, toast]);
 
   return (
     <div className="h-screen flex">
-      {/* Toolbar */}
-      <div className="w-64 bg-muted p-4 space-y-4">
-        <Button onClick={addClass} className="w-full">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Class
-        </Button>
-        <Button onClick={addInterface} className="w-full">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Interface
-        </Button>
-        <Button onClick={saveDiagram} className="w-full">
-          <Save className="mr-2 h-4 w-4" />
-          Save Diagram
-        </Button>
+      <DiagramToolbar
+        selectedElement={selectedElement}
+        onAddClass={addClass}
+        onAddInterface={addInterface}
+        onSave={saveDiagram}
+        onStartRelationship={startRelationship}
+      />
 
-        {selectedElement && (
-          <div className="space-y-2">
-            <h3 className="font-semibold">Add Relationship</h3>
-            <Select onValueChange={(value: Relationship['type']) => startRelationship(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="association">Association</SelectItem>
-                <SelectItem value="directed">Directed Association</SelectItem>
-                <SelectItem value="aggregation">Aggregation</SelectItem>
-                <SelectItem value="composition">Composition</SelectItem>
-                <SelectItem value="inheritance">Inheritance</SelectItem>
-                <SelectItem value="implementation">Implementation</SelectItem>
-                <SelectItem value="dependency">Dependency</SelectItem>
-                <SelectItem value="usage">Usage</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </div>
-
-      {/* Canvas */}
       <div className="flex-1 bg-white relative overflow-auto" ref={canvasRef}>
         {diagram.relationships.map(relationship => {
           const sourceElement = diagram.elements.find(el => el.id === relationship.sourceId);
@@ -255,26 +232,10 @@ const Editor = () => {
         ))}
       </div>
 
-      {/* Properties Panel */}
-      {selectedElement && (
-        <div className="w-64 bg-muted p-4 space-y-4">
-          <h3 className="font-semibold">{selectedElement.type === 'class' ? 'Class' : 'Interface'} Properties</h3>
-          
-          {selectedElement.type === 'class' && (
-            <>
-              <h4 className="font-semibold">Attributes</h4>
-              <Button onClick={() => addMember('attribute')} size="sm" className="w-full">
-                Add Attribute
-              </Button>
-            </>
-          )}
-
-          <h4 className="font-semibold">Methods</h4>
-          <Button onClick={() => addMember('method')} size="sm" className="w-full">
-            Add Method
-          </Button>
-        </div>
-      )}
+      <PropertiesPanel
+        selectedElement={selectedElement}
+        onAddMember={addMember}
+      />
     </div>
   );
 };
